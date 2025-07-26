@@ -1,0 +1,242 @@
+canvas background
+===
+
+#a2d2ff
+#bde0fe
+#ffafcc
+#ffc8dd
+#d0f4de
+#c7f9cc
+
+for elements please refer below style guide and do check for possibility of elements can be generated.
+https://github.com/rough-stuff/rough/wiki#simplification
+
+
+====
+
+Multiple user & Multiple board real time event with socket IO flow added,
+
+data structure to cache the board information in node server:
+
+boards = Map()
+
+{
+	"board-1": [board-1-elements],
+	"board-2": [board-2-elements],
+	...
+}
+
+userSessions = Map() 
+
+{
+	"userId": "socket.id / socket session id"
+}
+
+boardUserMapping = Map()
+
+{
+	"board-1": [user-1-id, user-2-id,...],
+	"board-2": [user-1-id, user-2-id, user-3-id,...],
+}
+
+===
+Rough flow:
+
+User opens board UI in window 
+	- user register / connect for socket with (userId & boardId) - server will create room with boardId and cache board elements in application data
+===
+Socket event Types:
+
+USER_CONNECT
+BOARD_JOINED
+BOARD_STATE_CHANGE
+BOARD_ELEMENT_UPDATE
+BOARD_CLEAR
+CURSOR_POSITION_CHANGE
+UESR_DISCONNECT
+===
+
+USER_CONNECT - 
+client opens board view then client sents USER_CONNECT event with userId, boardId, so user will join the room with boardId, if not exists room will get created and will update required data structures on server.
+client will get latest board elements data for boardId with BOARD_JOINED on client, based on this client will update store with board elements, board active users data & active cursors.
+
+====================
+
+Flow:
+
+
+1. Registration and Login with UI integration end to end
+	- token and user data in local storge on successful login
+	- registration and login success / failure snakc bar (https://mui.com/material-ui/react-snackbar/)
+	- if invalid token then redirect to login page with error / message 
+	- board related pages should be accessible by logged in users only
+	- logged in user name should show on top app bar with first name + last name with profile icon
+	- on profile icon click it should open menu with profile / logout option.
+		- profile menu item should open profile page with user details, edit profile to be supported (future).
+		- logout menu item click should show dialog with logout confirm and on click of yes application should logout and local store token and data should clean up from browser cache.
+
+2. Boards page UI flow end to end
+	- Board UI should list all boards with role, member cnt and action buttons based on role assigned to the logged in user.
+	- Create New Board button should open new board form and with validation, should be able to create a new board.
+	- Cancel button on New Board create page should redirect back to list of board pages and create new board page should reset.
+	- Create New Board should support mapping of user with role from all list and UI + API changes to be done from both ends.
+	- Update board functionality to be supported based on Role.
+	- Board actions based on Role:
+		- OWNER : CRUD board & members & members permission
+		- EDITOR : EDIT board only
+		- VIEWER : only view permission for board
+	
+3. Board UI 
+	- Tools selection
+	- Draw, Drag and Delete operation (Delete R&D) for elements in board, 
+	- Entire board clean up to be done only by OWNER
+	- Events
+		- client opens board UI 
+			- client: 
+				store the boardId, get the board elements data for selected board from backend and store it in redux store, get active users 	for board data from backend and plot that data on board UI.
+				client sent a connect / subscribe socket event to server with userId & boardId to receive real time events for the board which is open.
+			- server:
+				once client sents connect event with boardId & userId, server needs to add those details on server store and need to take action as per below flow:
+					- store client details for board active users
+					- add clientId to the room of roomId, notify active users regarding new member active event and sent socket event for that
+					- cache board elements if not cached on server data structure storage.
+		- client changes any element (create, update, delete) on active board
+			- client:
+				dispatch event to client storage based on client action for elements and update local storage data accordingly. sent socket event to the server based on client operation and then server has to take care to broadcast and update it to other users.
+			- server:
+				once server receives elements create, update, delete event from client, server will take action based on event actions and sent respective action to members of boardId room.
+		- client received board changes events for CRUD elements:
+			- client:
+				- once client receives elements update events for board from server then client has to take action based on received event type and has to update local redux store and render updated elements data to the board UI
+
+4. CronJob for update of board data to the database.
+	- for active boards on update events for that data first it will update in local cache of application in server then cronjob will update that to the respective database strucutre using cronjob
+	- cronjob run time should be configurable (idle time can be 30 seconds / 1 minute)
+	- need to think of Redis for cache of board elements. (PoC if possible)
+
+
+====
+
+Dev Flow In depth
+===
+events:
+
+USER_CONNECT
+BOARD_ELEMENTS 
+USER_BOARD_JOINED
+USER_BOARD_LEAVE
+
+===
+Impl flow for socket events on the client & server.
+
+1. USER_CONNECT (CONNET event)
+
+client:
+
+{
+	"userId": "",
+	"boardId": ""
+}
+
+- process the request as below
+	- add socket_id with userId in userSessions map to maintain the data
+	- add userId into room with boardId, if room not exists with boardId please create else join the same room
+	- update boardUserMapping map with boardId and userId to maintain the data
+	- get boardElements from boards map if available else get elements data from DB and update boards map data and process with below notification
+		- publish BOARD_ELEMENTS event with boardID and boardElements to connected user socket id - to provide initial board elements on the client
+	- publish USER_BOARD_JOINED event with boardID and userId to the room with boardId - to provide user connected info to the other subscribed users.
+	
+
+2. USER_DISCONNECT (DISCONNECT event to be handle by server)
+
+- once user disconnect with any xyz reason, follow below process
+	- remove socket_id from userSessions map
+	- update boardUserMapping to remove user from map users list
+	- publish USER_BOARD_LEAVE event with boardID and userId to the room with boardId - to provide user disconnected info to the other subscribed users.
+
+====
+
+Date: 08 May 2024
+
+client:
+
+whiteboardSlice - will store all data for active board and its relevant & reducer functions for 
+
+whiteboardSlice -
+	tool - 			will have selected tool info for user
+	boardId - 		will store opened boardId by user
+	boardElements - will store board elements data (received from server / updated locally)
+	activeUsers - 	will store active user data received from server for opened board (should update once client will receive disconnect event for user to the board)
+	
+	
+events:
+
+USER_CONNECT
+
+{
+  "boardId": "boardId",
+  "userId": "userId"
+}
+
+BOARD_ELEMENTS // format to be updated 
+
+{
+  "boardId" : "boardId",
+  "boardElements": ["Array of board elements data"]
+}
+
+USER_BOARD_JOINED
+
+{
+  "boardId": "boardId",
+  "user": {
+    "key": "value with user object"
+  }
+}
+
+USER_BOARD_LEAVE
+
+{
+  "boardId": "boardId",
+  "user": {
+    "key": "value with user object"
+  }
+}
+
+BOARD_ELEMENT_UPDATE
+
+{
+  "boardId": "ObjectId of board",
+  "boardElements": [
+    "Array of board elements"
+  ]
+}
+
+BOARD_CLEAR
+
+{
+	"boardId": "ObjectId of board"
+}
+
+
+===
+TODO:
+
+reset-password with e2e API
+	- API - done
+	- UI integration - done
+board open canvas page 
+	- Info - done (Members info to be added as string format - p1)
+	- Active members avatar - dynamic from store & menu open / close on handle of that - done
+cronjob to store / update board element data in the database after some every periodic time interval - done
+Export board as pdf / image - done (image bg white pending)
+open API documentation for REST APIs using swagger - auth APIs done, users APIs done, board APIs done
+Home Page design & Impl - done
+README.md to be updated - done
+
+Future:
+Edit board PoC & Impl
+route access restriction / auto login / auto logout on front end side
+Dockerize front end and backend application with DockerFile and simulate deployment using docker based deployment
+logging in backend application with log file.
+
