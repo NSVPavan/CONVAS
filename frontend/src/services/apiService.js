@@ -1,6 +1,7 @@
 import axios from "axios";
 
-const API_URL = process.env.BACKEND_URL || "http://localhost:5002";
+// If REACT_APP_BACKEND_URL is not set, fallback to localhost for development.
+const API_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:5002";
 
 export const registerUser = async (reqData) => {
   try {
