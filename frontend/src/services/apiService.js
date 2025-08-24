@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_URL = process.env.FRONTEND_URL || "http://localhost:5002";
+const API_URL = process.env.BACKEND_URL || "http://localhost:5002";
 
 export const registerUser = async (reqData) => {
   try {
