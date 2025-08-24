@@ -1,18 +1,18 @@
-const swaggerJSDoc = require('swagger-jsdoc');
+const swaggerJSDoc = require("swagger-jsdoc");
 const { PORT } = process.env;
 
 // Swagger definition
 const swaggerDefinition = {
-  openapi: '3.0.0',
+  openapi: "3.0.0",
   info: {
-    title: 'CoSketch REST APIs documentation',
-    version: '1.0.0',
-    description: 'Documentation for CoSketch REST APIs',
+    title: "CoSketch REST APIs documentation",
+    version: "1.0.0",
+    description: "Documentation for CoSketch REST APIs",
   },
   servers: [
     {
-      url: `http://localhost:${PORT}`, // Change this to your application's URL
-      description: 'Local server',
+      url: process.env.BACKEND_URL || `http://localhost:${PORT}`, // Change this to your application's URL
+      description: "Local server",
     },
   ],
 };
@@ -21,7 +21,7 @@ const swaggerDefinition = {
 const options = {
   swaggerDefinition,
   // Paths to files containing OpenAPI definitions
-  apis: ['./routes/*.js'], // Adjust the path to where your route files are located
+  apis: ["./routes/*.js"], // Adjust the path to where your route files are located
 };
 
 // Initialize swagger-jsdoc
